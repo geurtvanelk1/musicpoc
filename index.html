@@ -722,212 +722,312 @@ return m+":"+s;
 
 
 // BACKGROUND
+// BACKGROUND
 
-const c=
+const c =
 document.getElementById("bg");
 
-const ctx=
+const ctx =
 c.getContext("2d");
+
+let tiles = [];
+let pulses = [];
 
 function resize(){
 
-c.width=
-window.innerWidth;
+    c.width =
+    window.innerWidth;
 
-c.height=
-window.innerHeight;
+    c.height =
+    window.innerHeight;
+
+    generateTiles();
+}
+
+window.addEventListener(
+    "resize",
+    resize
+);
+
+class Tile{
+
+    constructor(x,y,size){
+
+        this.x=x;
+        this.y=y;
+        this.size=size;
+
+        this.phase=
+            Math.random()*1000;
+
+        this.baseColor=
+            [
+                [110,115,125],
+                [125,130,140],
+                [145,150,160],
+                [170,180,190],
+                [190,205,220]
+            ][
+                Math.floor(
+                    Math.random()*5
+                )
+            ];
+
+        this.vertices=[];
+
+        const sides=
+            4+
+            Math.floor(
+                Math.random()*3
+            );
+
+        for(
+            let i=0;
+            i<sides;
+            i++
+        ){
+
+            const a=
+                (i/sides)*
+                Math.PI*2;
+
+            const r=
+                size*
+                (
+                    0.7+
+                    Math.random()*0.5
+                );
+
+            this.vertices.push({
+                x:Math.cos(a)*r,
+                y:Math.sin(a)*r
+            });
+
+        }
+
+    }
+
+    draw(time){
+
+        let glow =
+            0.5 +
+            0.5 *
+            Math.sin(
+                time*0.00015 +
+                this.phase
+            );
+
+        for(let p of pulses){
+
+            const d =
+                Math.hypot(
+                    this.x-p.x,
+                    this.y-p.y
+                );
+
+            glow +=
+                Math.exp(
+                    -Math.pow(
+                        (d-p.radius)/100,
+                        2
+                    )
+                ) * 0.6;
+
+        }
+
+        const factor =
+            Math.min(
+                1.6,
+                0.7+glow
+            );
+
+        const r=
+            Math.min(
+                255,
+                this.baseColor[0]
+                *factor
+            );
+
+        const g=
+            Math.min(
+                255,
+                this.baseColor[1]
+                *factor
+            );
+
+        const b=
+            Math.min(
+                255,
+                this.baseColor[2]
+                *factor
+            );
+
+        ctx.beginPath();
+
+        ctx.moveTo(
+            this.x+this.vertices[0].x,
+            this.y+this.vertices[0].y
+        );
+
+        for(let v of this.vertices){
+
+            ctx.lineTo(
+                this.x+v.x,
+                this.y+v.y
+            );
+
+        }
+
+        ctx.closePath();
+
+        ctx.fillStyle =
+            `rgba(${r},${g},${b},0.32)`;
+
+        ctx.fill();
+
+        ctx.strokeStyle =
+            "rgba(255,255,255,0.05)";
+
+        ctx.lineWidth=1;
+
+        ctx.stroke();
+
+        if(glow>0.9){
+
+            ctx.shadowBlur=18;
+
+            ctx.shadowColor=
+                "rgba(220,235,255,0.25)";
+
+            ctx.fill();
+
+            ctx.shadowBlur=0;
+        }
+
+    }
+
+}
+
+function generateTiles(){
+
+    tiles=[];
+
+    const spacing=42;
+
+    for(
+        let y=-40;
+        y<c.height+40;
+        y+=spacing
+    ){
+
+        for(
+            let x=-40;
+            x<c.width+40;
+            x+=spacing
+        ){
+
+            tiles.push(
+
+                new Tile(
+
+                    x+
+                    (Math.random()-0.5)*12,
+
+                    y+
+                    (Math.random()-0.5)*12,
+
+                    16+
+                    Math.random()*10
+
+                )
+
+            );
+
+        }
+
+    }
+
+}
+
+function createPulse(){
+
+    pulses.push({
+
+        x:
+        Math.random()*c.width,
+
+        y:
+        Math.random()*c.height,
+
+        radius:0
+
+    });
+
+}
+
+setInterval(
+    createPulse,
+    5000
+);
+
+function animate(){
+
+    const grad =
+        ctx.createLinearGradient(
+            0,
+            0,
+            0,
+            c.height
+        );
+
+    grad.addColorStop(
+        0,
+        "rgb(18,20,24)"
+    );
+
+    grad.addColorStop(
+        1,
+        "rgb(30,34,42)"
+    );
+
+    ctx.fillStyle =
+        grad;
+
+    ctx.fillRect(
+        0,
+        0,
+        c.width,
+        c.height
+    );
+
+    const now =
+        performance.now();
+
+    for(let p of pulses){
+
+        p.radius += 0.4;
+
+    }
+
+    pulses =
+        pulses.filter(
+            p => p.radius < 1000
+        );
+
+    for(let tile of tiles){
+
+        tile.draw(now);
+
+    }
+
+    requestAnimationFrame(
+        animate
+    );
 
 }
 
 resize();
-
-window.onresize=
-resize;
-
-let vines=[];
-
-
-class Vine{
-
-constructor(x=null,y=null,parentAngle=null){
-
-this.points=[];
-
-this.x=x ?? Math.random()*c.width;
-this.y=y ?? Math.random()*c.height;
-
-this.angle=parentAngle ?? Math.random()*Math.PI*2;
-
-this.life=0;
-this.maxLife=300+Math.random()*350;
-
-this.speed=0.6+Math.random()*0.8;
-
-this.curve=0.015+Math.random()*0.03;
-this.wavePhase=Math.random()*Math.PI*2;
-this.waveSpeed=0.03+Math.random()*0.04;
-
-this.branchChance=0.0025;
-this.hasBranched=false;
-
-}
-
-update(){
-
-this.life++;
-
-let spiralInfluence=Math.sin(this.life*this.waveSpeed+this.wavePhase)*0.06;
-this.angle+=spiralInfluence;
-this.angle+=(Math.random()-0.5)*this.curve;
-
-this.x+=Math.cos(this.angle)*this.speed;
-this.y+=Math.sin(this.angle)*this.speed;
-
-this.points.push({x:this.x,y:this.y});
-
-if(this.points.length>320) this.points.shift();
-
-if(
-!this.hasBranched &&
-this.life>80 &&
-Math.random()<this.branchChance &&
-vines.length<18
-){
-this.hasBranched=true;
-
-vines.push(
-new Vine(
-this.x,
-this.y,
-this.angle+(Math.random()>0.5?1:-1)*(0.5+Math.random()*0.8)
-)
-);
-}
-
-}
-
-draw(){
-
-if(this.points.length<4) return;
-
-let alpha=Math.sin((this.life/this.maxLife)*Math.PI);
-
-ctx.beginPath();
-ctx.moveTo(this.points[0].x,this.points[0].y);
-
-for(let i=1;i<this.points.length-2;i++){
-
-let xc=(this.points[i].x+this.points[i+1].x)/2;
-let yc=(this.points[i].y+this.points[i+1].y)/2;
-
-ctx.quadraticCurveTo(
-this.points[i].x,
-this.points[i].y,
-xc,
-yc
-);
-
-}
-
-ctx.strokeStyle=`rgba(235,235,230,${alpha*0.22})`;
-ctx.lineWidth=1.2+alpha*1.6;
-
-ctx.shadowBlur=12;
-ctx.shadowColor="rgba(255,255,255,.15)";
-
-ctx.stroke();
-
-}
-
-dead(){
-
-return(this.life>this.maxLife);
-
-}
-
-}
-
-
-let t=0;
-
-function animate(){
-
-t+=0.0025;
-
-let grad=
-ctx.createLinearGradient(
-0,0,
-c.width,
-c.height
-);
-
-grad.addColorStop(
-0,
-`rgb(
-${80+20*Math.sin(t)},
-${60+15*Math.sin(t*.8)},
-40
-)`
-);
-
-grad.addColorStop(
-1,
-`rgb(
-${120+15*Math.sin(t*.5)},
-${90+15*Math.sin(t)},
-60
-)`
-);
-
-ctx.fillStyle=grad;
-
-ctx.fillRect(
-0,
-0,
-c.width,
-c.height
-);
-
-if(
-Math.random()<0.02
-&&
-vines.length<14
-){
-
-vines.push(
-new Vine()
-);
-
-}
-
-for(
-let i=
-vines.length-1;
-i>=0;
-i--
-){
-
-vines[i].update();
-
-vines[i].draw();
-
-if(vines[i].dead()){
-
-vines.splice(i,1);
-
-}
-
-}
-
-requestAnimationFrame(
-animate
-);
-
-}
-
-animate();
-
-// TIMER
+animate();// TIMER
 let timerSeconds=0;
 let timerInterval=null;
 const timerBtn=document.getElementById("timerBtn");
