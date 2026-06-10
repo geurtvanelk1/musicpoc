@@ -723,399 +723,115 @@ return m+":"+s;
 
 
 // BACKGROUND
-// BACKGROUND
 
-const c = document.getElementById("bg");
-const ctx = c.getContext("2d");
+const c=document.getElementById("bg");
+const ctx=c.getContext("2d");
+let cells=[];
 
-let cells = [];
-let pulses = [];
+function resize(){
+ c.width=window.innerWidth;
+ c.height=window.innerHeight;
+ generateMosaic();
+}
+window.addEventListener("resize",resize);
 
-function resize() {
+function generateMosaic(){
+ cells=[];
+ const count=100;
+ const points=[];
 
-    c.width = window.innerWidth;
-    c.height = window.innerHeight;
+ for(let i=0;i<count;i++){
+   points.push([Math.random()*c.width,Math.random()*c.height]);
+ }
 
-    generateVoronoi();
+ const delaunay=d3.Delaunay.from(points);
+ const voronoi=delaunay.voronoi([0,0,c.width,c.height]);
+
+ const palette=[
+ [122,92,58],
+ [154,122,78],
+ [186,154,108],
+ [220,204,170],
+ [198,172,128]
+ ];
+
+ for(let i=0;i<count;i++){
+   const poly=voronoi.cellPolygon(i);
+   if(!poly) continue;
+
+   cells.push({
+     poly:poly,
+     color:palette[Math.floor(Math.random()*palette.length)],
+     phase:Math.random()*Math.PI*2
+   });
+ }
 }
 
-window.addEventListener("resize", resize);
+function drawRoundedCell(cell,time){
 
-function generateVoronoi() {
+ let cx=0,cy=0;
+ for(const p of cell.poly){cx+=p[0];cy+=p[1];}
+ cx/=cell.poly.length;
+ cy/=cell.poly.length;
 
-    cells = [];
+ const shimmer=0.96+0.04*Math.sin(time*0.0000015+cell.phase);
 
-    const count =
-        Math.max(
-            120,
-            Math.floor(
-                (c.width * c.height) / 24000
-            )
-        );
+ const r=Math.min(255,cell.color[0]*shimmer);
+ const g=Math.min(255,cell.color[1]*shimmer);
+ const b=Math.min(255,cell.color[2]*shimmer);
 
-    const points = [];
+ ctx.beginPath();
 
-    for (let i = 0; i < count; i++) {
+ for(let i=0;i<cell.poly.length;i++){
+   const p0=cell.poly[i];
+   const p1=cell.poly[(i+1)%cell.poly.length];
+   const mx=(p0[0]+p1[0])/2;
+   const my=(p0[1]+p1[1])/2;
 
-        points.push([
+   if(i===0) ctx.moveTo(mx,my);
+   else ctx.quadraticCurveTo(p0[0],p0[1],mx,my);
+ }
 
-            Math.random() * c.width,
+ ctx.closePath();
 
-            Math.random() * c.height
+ const grad=ctx.createRadialGradient(cx,cy,4,cx,cy,140);
+ grad.addColorStop(0,`rgba(${Math.min(255,r+12)},${Math.min(255,g+12)},${Math.min(255,b+12)},0.34)`);
+ grad.addColorStop(1,`rgba(${r},${g},${b},0.22)`);
 
-        ]);
+ ctx.fillStyle=grad;
+ ctx.fill();
 
-    }
-
-    const delaunay =
-        d3.Delaunay.from(points);
-
-    const voronoi =
-        delaunay.voronoi([
-            0,
-            0,
-            c.width,
-            c.height
-        ]);
-
-    const palette = [
-
-        [96,72,42],
-        [118,88,52],
-        [142,110,66],
-        [174,145,92],
-        [208,188,142]
-
-    ];
-
-    for (let i = 0; i < count; i++) {
-
-        const poly =
-            voronoi.cellPolygon(i);
-
-        if (!poly) continue;
-
-        cells.push({
-
-            poly,
-
-            color:
-                palette[
-                    Math.floor(
-                        Math.random() *
-                        palette.length
-                    )
-                ],
-
-            phase:
-                Math.random() *
-                Math.PI * 2,
-
-            grainDirection:
-                Math.random() *
-                Math.PI * 2
-
-        });
-
-    }
+ ctx.save();
+ ctx.shadowBlur=3;
+ ctx.shadowColor='rgba(210,225,240,0.20)';
+ ctx.strokeStyle='rgba(195,210,230,0.58)';
+ ctx.lineWidth=1.8;
+ ctx.stroke();
+ ctx.restore();
 }
 
-function createPulse() {
+function animate(){
 
-    pulses.push({
+ const bg=ctx.createLinearGradient(0,0,0,c.height);
+ bg.addColorStop(0,'rgb(52,38,24)');
+ bg.addColorStop(1,'rgb(88,66,42)');
 
-        x:
-            Math.random() *
-            c.width,
+ ctx.fillStyle=bg;
+ ctx.fillRect(0,0,c.width,c.height);
 
-        y:
-            Math.random() *
-            c.height,
+ const now=performance.now();
 
-        radius: 0
+ for(const cell of cells){
+   drawRoundedCell(cell,now);
+ }
 
-    });
-
-}
-
-setInterval(
-    createPulse,
-    25000
-);
-
-function drawCell(cell, time) {
-
-    let cx = 0;
-    let cy = 0;
-
-    for (const p of cell.poly) {
-
-        cx += p[0];
-        cy += p[1];
-
-    }
-
-    cx /= cell.poly.length;
-    cy /= cell.poly.length;
-
-    let glow =
-
-        0.5 +
-
-        0.5 *
-
-        Math.sin(
-
-            time *
-            0.000012 +
-
-            cell.phase
-
-        );
-
-    for (const pulse of pulses) {
-
-        const d =
-
-            Math.hypot(
-
-                cx - pulse.x,
-
-                cy - pulse.y
-
-            );
-
-        glow +=
-
-            Math.exp(
-
-                -Math.pow(
-
-                    (d - pulse.radius) /
-                    220,
-
-                    2
-
-                )
-
-            ) * 0.05;
-
-    }
-
-    const factor =
-
-        0.82 +
-
-        glow * 0.18;
-
-    const r =
-
-        Math.min(
-            255,
-            cell.color[0] *
-            factor
-        );
-
-    const g =
-
-        Math.min(
-            255,
-            cell.color[1] *
-            factor
-        );
-
-    const b =
-
-        Math.min(
-            255,
-            cell.color[2] *
-            factor
-        );
-
-    ctx.beginPath();
-
-    ctx.moveTo(
-
-        cell.poly[0][0],
-        cell.poly[0][1]
-
-    );
-
-    for (
-        let i = 1;
-        i < cell.poly.length;
-        i++
-    ) {
-
-        ctx.lineTo(
-
-            cell.poly[i][0],
-            cell.poly[i][1]
-
-        );
-
-    }
-
-    ctx.closePath();
-
-    ctx.fillStyle =
-        `rgba(${r},${g},${b},0.28)`;
-
-    ctx.fill();
-
-    // TEXTUUR
-
-    ctx.save();
-
-    ctx.clip();
-
-    for (
-        let i = -300;
-        i < 300;
-        i += 6
-    ) {
-
-        const dir =
-            cell.grainDirection;
-
-        const x1 =
-
-            cx +
-
-            Math.cos(dir) *
-            i;
-
-        const y1 =
-
-            cy +
-
-            Math.sin(dir) *
-            i;
-
-        const x2 =
-
-            x1 +
-
-            Math.cos(
-                dir +
-                Math.PI / 2
-            ) * 600;
-
-        const y2 =
-
-            y1 +
-
-            Math.sin(
-                dir +
-                Math.PI / 2
-            ) * 600;
-
-        ctx.beginPath();
-
-        ctx.moveTo(
-            x1,
-            y1
-        );
-
-        ctx.lineTo(
-            x2,
-            y2
-        );
-
-        ctx.strokeStyle =
-            "rgba(255,255,255,0.012)";
-
-        ctx.lineWidth =
-            0.5;
-
-        ctx.stroke();
-    }
-
-    ctx.restore();
-
-    // ZILVERBLAUWE VOEGEN
-
-    ctx.strokeStyle =
-        "rgba(190,205,220,0.35)";
-
-    ctx.lineWidth =
-        1.2;
-
-    ctx.stroke();
-
-}
-
-function animate() {
-
-    const grad =
-
-        ctx.createLinearGradient(
-            0,
-            0,
-            0,
-            c.height
-        );
-
-    grad.addColorStop(
-        0,
-        "rgb(40,28,18)"
-    );
-
-    grad.addColorStop(
-        1,
-        "rgb(78,58,36)"
-    );
-
-    ctx.fillStyle =
-        grad;
-
-    ctx.fillRect(
-        0,
-        0,
-        c.width,
-        c.height
-    );
-
-    const now =
-        performance.now();
-
-    for (
-        const pulse
-        of pulses
-    ) {
-
-        pulse.radius +=
-            0.04;
-
-    }
-
-    pulses =
-        pulses.filter(
-            p =>
-                p.radius <
-                1600
-        );
-
-    for (
-        const cell
-        of cells
-    ) {
-
-        drawCell(
-            cell,
-            now
-        );
-
-    }
-
-    requestAnimationFrame(
-        animate
-    );
-
+ requestAnimationFrame(animate);
 }
 
 resize();
 animate();
+
+
 // TIMER
 let timerSeconds=0;
 let timerInterval=null;
