@@ -748,11 +748,11 @@ function generateMosaic(){
  const voronoi=delaunay.voronoi([0,0,c.width,c.height]);
 
  const palette=[
- [122,92,58],
- [154,122,78],
- [186,154,108],
- [220,204,170],
- [198,172,128]
+   [122,92,58],
+   [154,122,78],
+   [186,154,108],
+   [220,204,170],
+   [198,172,128]
  ];
 
  for(let i=0;i<count;i++){
@@ -760,21 +760,21 @@ function generateMosaic(){
    if(!poly) continue;
 
    cells.push({
-     poly:poly,
+     poly,
      color:palette[Math.floor(Math.random()*palette.length)],
      phase:Math.random()*Math.PI*2
    });
  }
 }
 
-function drawRoundedCell(cell,time){
+function drawCell(cell,time){
 
  let cx=0,cy=0;
  for(const p of cell.poly){cx+=p[0];cy+=p[1];}
  cx/=cell.poly.length;
  cy/=cell.poly.length;
 
- const shimmer=0.96+0.04*Math.sin(time*0.0000015+cell.phase);
+ const shimmer=0.97+0.03*Math.sin(time*0.0000012+cell.phase);
 
  const r=Math.min(255,cell.color[0]*shimmer);
  const g=Math.min(255,cell.color[1]*shimmer);
@@ -788,23 +788,26 @@ function drawRoundedCell(cell,time){
    const mx=(p0[0]+p1[0])/2;
    const my=(p0[1]+p1[1])/2;
 
+   const sharp=((i+Math.floor(cell.phase*100))%5===0);
+
    if(i===0) ctx.moveTo(mx,my);
+   else if(sharp) ctx.lineTo(mx,my);
    else ctx.quadraticCurveTo(p0[0],p0[1],mx,my);
  }
 
  ctx.closePath();
 
  const grad=ctx.createRadialGradient(cx,cy,4,cx,cy,140);
- grad.addColorStop(0,`rgba(${Math.min(255,r+12)},${Math.min(255,g+12)},${Math.min(255,b+12)},0.34)`);
- grad.addColorStop(1,`rgba(${r},${g},${b},0.22)`);
+ grad.addColorStop(0,`rgba(${Math.min(255,r+10)},${Math.min(255,g+10)},${Math.min(255,b+10)},0.34)`);
+ grad.addColorStop(1,`rgba(${r},${g},${b},0.24)`);
 
  ctx.fillStyle=grad;
  ctx.fill();
 
  ctx.save();
  ctx.shadowBlur=3;
- ctx.shadowColor='rgba(210,225,240,0.20)';
- ctx.strokeStyle='rgba(195,210,230,0.58)';
+ ctx.shadowColor="rgba(210,225,240,0.20)";
+ ctx.strokeStyle="rgba(190,205,225,0.62)";
  ctx.lineWidth=1.8;
  ctx.stroke();
  ctx.restore();
@@ -813,8 +816,8 @@ function drawRoundedCell(cell,time){
 function animate(){
 
  const bg=ctx.createLinearGradient(0,0,0,c.height);
- bg.addColorStop(0,'rgb(52,38,24)');
- bg.addColorStop(1,'rgb(88,66,42)');
+ bg.addColorStop(0,"rgb(78,92,108)");
+ bg.addColorStop(1,"rgb(58,70,84)");
 
  ctx.fillStyle=bg;
  ctx.fillRect(0,0,c.width,c.height);
@@ -822,7 +825,7 @@ function animate(){
  const now=performance.now();
 
  for(const cell of cells){
-   drawRoundedCell(cell,now);
+   drawCell(cell,now);
  }
 
  requestAnimationFrame(animate);
