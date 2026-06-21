@@ -736,7 +736,9 @@ function resize(){
 window.addEventListener("resize",resize);
 
 function generateMosaic(){
+
  cells=[];
+
  const count=100;
  const points=[];
 
@@ -747,22 +749,24 @@ function generateMosaic(){
  const delaunay=d3.Delaunay.from(points);
  const voronoi=delaunay.voronoi([0,0,c.width,c.height]);
 
+ // Spring palette (choice 1B)
  const palette=[
-   [122,92,58],
-   [154,122,78],
-   [186,154,108],
-   [220,204,170],
-   [198,172,128]
+   [235,230,215], // ivory
+   [225,215,185], // champagne
+   [220,208,175], // light honey
+   [215,220,200], // pale jade
+   [205,215,190]  // soft sage
  ];
 
  for(let i=0;i<count;i++){
+
    const poly=voronoi.cellPolygon(i);
    if(!poly) continue;
 
    cells.push({
-     poly,
-     color:palette[Math.floor(Math.random()*palette.length)],
-     phase:Math.random()*Math.PI*2
+      poly,
+      color:palette[Math.floor(Math.random()*palette.length)],
+      phase:Math.random()*Math.PI*2
    });
  }
 }
@@ -770,44 +774,82 @@ function generateMosaic(){
 function drawCell(cell,time){
 
  let cx=0,cy=0;
- for(const p of cell.poly){cx+=p[0];cy+=p[1];}
+
+ for(const p of cell.poly){
+   cx+=p[0];
+   cy+=p[1];
+ }
+
  cx/=cell.poly.length;
  cy/=cell.poly.length;
 
- const shimmer=0.97+0.03*Math.sin(time*0.0000012+cell.phase);
+ // subtle individual sheen
+ const shimmer=0.985+0.02*Math.sin(
+   time*0.0000009 + cell.phase
+ );
 
- const r=Math.min(255,cell.color[0]*shimmer);
- const g=Math.min(255,cell.color[1]*shimmer);
- const b=Math.min(255,cell.color[2]*shimmer);
+ // slow sunlight wave across entire surface
+ const wave=0.985+0.03*Math.sin(
+   cx*0.0025 + time*0.0000007
+ );
+
+ const factor=shimmer*wave;
+
+ const r=Math.min(255,cell.color[0]*factor);
+ const g=Math.min(255,cell.color[1]*factor);
+ const b=Math.min(255,cell.color[2]*factor);
 
  ctx.beginPath();
 
  for(let i=0;i<cell.poly.length;i++){
+
    const p0=cell.poly[i];
    const p1=cell.poly[(i+1)%cell.poly.length];
+
    const mx=(p0[0]+p1[0])/2;
    const my=(p0[1]+p1[1])/2;
 
    const sharp=((i+Math.floor(cell.phase*100))%5===0);
 
-   if(i===0) ctx.moveTo(mx,my);
-   else if(sharp) ctx.lineTo(mx,my);
-   else ctx.quadraticCurveTo(p0[0],p0[1],mx,my);
+   if(i===0){
+      ctx.moveTo(mx,my);
+   }else if(sharp){
+      ctx.lineTo(mx,my);
+   }else{
+      ctx.quadraticCurveTo(
+         p0[0],
+         p0[1],
+         mx,
+         my
+      );
+   }
  }
 
  ctx.closePath();
 
- const grad=ctx.createRadialGradient(cx,cy,4,cx,cy,140);
- grad.addColorStop(0,`rgba(${Math.min(255,r+10)},${Math.min(255,g+10)},${Math.min(255,b+10)},0.34)`);
- grad.addColorStop(1,`rgba(${r},${g},${b},0.24)`);
+ const grad=ctx.createRadialGradient(
+   cx,cy,4,
+   cx,cy,140
+ );
+
+ grad.addColorStop(
+   0,
+   `rgba(${Math.min(255,r+8)},${Math.min(255,g+8)},${Math.min(255,b+8)},0.32)`
+ );
+
+ grad.addColorStop(
+   1,
+   `rgba(${r},${g},${b},0.24)`
+ );
 
  ctx.fillStyle=grad;
  ctx.fill();
 
+ // pearl-silver grout with sage tint (choice 2B)
  ctx.save();
  ctx.shadowBlur=3;
- ctx.shadowColor="rgba(210,225,240,0.20)";
- ctx.strokeStyle="rgba(190,205,225,0.62)";
+ ctx.shadowColor="rgba(220,228,218,0.22)";
+ ctx.strokeStyle="rgba(215,220,205,0.65)";
  ctx.lineWidth=1.8;
  ctx.stroke();
  ctx.restore();
@@ -816,8 +858,10 @@ function drawCell(cell,time){
 function animate(){
 
  const bg=ctx.createLinearGradient(0,0,0,c.height);
- bg.addColorStop(0,"rgb(78,92,108)");
- bg.addColorStop(1,"rgb(58,70,84)");
+
+ // soft sage-grey substrate (choice 3C)
+ bg.addColorStop(0,"rgb(138,150,142)");
+ bg.addColorStop(1,"rgb(108,120,116)");
 
  ctx.fillStyle=bg;
  ctx.fillRect(0,0,c.width,c.height);
