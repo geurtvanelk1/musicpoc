@@ -436,6 +436,9 @@ return tracks
 
 function loadTrack(i){
 
+if(i===undefined||i===null||!tracks[i])
+return;
+
 currentTrack=i;
 
 audio.src=
@@ -451,11 +454,28 @@ renderPlaylist();
 }
 
 
+function safePlay(){
+
+const p=audio.play();
+
+if(p&&p.catch){
+p.catch(err=>{
+console.warn("Playback was prevented:",err);
+playBtn.innerText="▶";
+});
+}
+
+}
+
+
 function playTrack(i){
+
+if(!tracks[i])
+return;
 
 loadTrack(i);
 
-audio.play();
+safePlay();
 
 playBtn.innerText="⏸";
 
@@ -505,6 +525,14 @@ html;
 
 function toggleTrack(i){
 
+const enabled=getEnabledTracks();
+
+if(tracks[i].enabled&&enabled.length<=1){
+
+return;
+
+}
+
 tracks[i].enabled=
 !tracks[i].enabled;
 
@@ -522,7 +550,7 @@ playBtn.onclick=()=>{
 
 if(audio.paused){
 
-audio.play();
+safePlay();
 
 playBtn.innerText="⏸";
 
@@ -577,7 +605,7 @@ return;
 if(repeatMode===2){
 
 audio.currentTime=0;
-audio.play();
+safePlay();
 
 return;
 
@@ -647,6 +675,9 @@ document
 let enabled=
 getEnabledTracks();
 
+if(enabled.length===0)
+return;
+
 let pos=
 enabled.indexOf(
 currentTrack
@@ -694,12 +725,33 @@ audio.duration
 
 progress.oninput=()=>{
 
+if(isFinite(audio.duration)&&audio.duration>0){
+
 audio.currentTime=
 (progress.value/100)
 *
 audio.duration;
 
+}
+
 };
+
+
+audio.addEventListener(
+"error",
+()=>{
+
+console.warn(
+"Playback error for track:",
+tracks[currentTrack]&&tracks[currentTrack].file
+);
+
+title.innerText="Unable to play this track";
+
+playBtn.innerText="▶";
+
+}
+);
 
 
 function format(sec){
@@ -731,13 +783,29 @@ let cells=[];
 function resize(){
  c.width=window.innerWidth;
  c.height=window.innerHeight;
- generateMosaic();
+ try{
+   generateMosaic();
+ }catch(e){
+   console.warn("Background mosaic unavailable:",e);
+   cells=[];
+ }
 }
-window.addEventListener("resize",resize);
+
+let resizeTimeout=null;
+window.addEventListener("resize",()=>{
+ clearTimeout(resizeTimeout);
+ resizeTimeout=setTimeout(resize,150);
+});
 
 function generateMosaic(){
 
  cells=[];
+
+ if(typeof d3==="undefined"||!d3.Delaunay){
+   // background library failed to load (offline / blocked CDN);
+   // fall back to the plain gradient rather than throwing
+   return;
+ }
 
  const count=100;
  const points=[];
@@ -862,19 +930,28 @@ function drawCell(cell,time){
 
 function animate(){
 
- const bg=ctx.createLinearGradient(0,0,0,c.height);
+ try{
 
- // earthy dusk-sky substrate: muted blue fading to warm soil brown
- bg.addColorStop(0,"rgb(95,120,130)");
- bg.addColorStop(1,"rgb(90,75,60)");
+   const bg=ctx.createLinearGradient(0,0,0,c.height);
 
- ctx.fillStyle=bg;
- ctx.fillRect(0,0,c.width,c.height);
+   // earthy dusk-sky substrate: muted blue fading to warm soil brown
+   bg.addColorStop(0,"rgb(95,120,130)");
+   bg.addColorStop(1,"rgb(90,75,60)");
 
- const now=performance.now();
+   ctx.fillStyle=bg;
+   ctx.fillRect(0,0,c.width,c.height);
 
- for(const cell of cells){
-   drawCell(cell,now);
+   const now=performance.now();
+
+   for(const cell of cells){
+     drawCell(cell,now);
+   }
+
+ }catch(e){
+
+   // never let a single bad frame permanently freeze the background
+   console.warn("Background render error:",e);
+
  }
 
  requestAnimationFrame(animate);
@@ -885,6 +962,32 @@ animate();
 
 
 // TIMER
+let memoryStorage={};
+
+function safeGetStorage(key){
+try{
+return localStorage.getItem(key);
+}catch(e){
+return memoryStorage[key]||null;
+}
+}
+
+function safeSetStorage(key,value){
+try{
+localStorage.setItem(key,value);
+}catch(e){
+memoryStorage[key]=value;
+}
+}
+
+function safeRemoveStorage(key){
+try{
+localStorage.removeItem(key);
+}catch(e){
+delete memoryStorage[key];
+}
+}
+
 let timerSeconds=0;
 let timerInterval=null;
 const timerBtn=document.getElementById("timerBtn");
@@ -904,7 +1007,7 @@ startTimer(h*60+m);
 function startTimer(minutes){
 closeTimer();
 timerSeconds=minutes*60;
-localStorage.setItem("sleepTimerEnd",Date.now()+timerSeconds*1000);
+safeSetStorage("sleepTimerEnd",Date.now()+timerSeconds*1000);
 
 if(timerInterval) clearInterval(timerInterval);
 
@@ -913,7 +1016,7 @@ updateTimer();
 }
 
 function updateTimer(){
-let end=localStorage.getItem("sleepTimerEnd");
+let end=safeGetStorage("sleepTimerEnd");
 if(!end)return;
 
 timerSeconds=Math.floor((end-Date.now())/1000);
@@ -923,7 +1026,7 @@ clearInterval(timerInterval);
 audio.pause();
 audio.volume=1;
 timerDisplay.innerText="";
-localStorage.removeItem("sleepTimerEnd");
+safeRemoveStorage("sleepTimerEnd");
 title.innerText="Listening session ended";
 return;
 }
@@ -940,7 +1043,7 @@ timerDisplay.innerText=
 }
 
 window.addEventListener("load",()=>{
-let end=localStorage.getItem("sleepTimerEnd");
+let end=safeGetStorage("sleepTimerEnd");
 if(end){
 timerInterval=setInterval(updateTimer,1000);
 updateTimer();
