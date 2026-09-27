@@ -774,11 +774,12 @@ return m+":"+s;
 
 
 
-// BACKGROUND
-
+// BACKGROUND & VISIBILITY OPTIMIZATION
 const c=document.getElementById("bg");
 const ctx=c.getContext("2d");
 let cells=[];
+let animationFrameId = null;
+let isPageVisible = true;
 
 function resize(){
  c.width=window.innerWidth;
@@ -802,8 +803,6 @@ function generateMosaic(){
  cells=[];
 
  if(typeof d3==="undefined"||!d3.Delaunay){
-   // background library failed to load (offline / blocked CDN);
-   // fall back to the plain gradient rather than throwing
    return;
  }
 
@@ -817,18 +816,17 @@ function generateMosaic(){
  const delaunay=d3.Delaunay.from(points);
  const voronoi=delaunay.voronoi([0,0,c.width,c.height]);
 
- // Palette drawn from nature: moss, earth, sky, wildflower
  const palette=[
-   [235,230,215], // ivory
-   [225,215,185], // champagne
-   [220,208,175], // light honey / wheat
-   [215,220,200], // pale jade
-   [205,215,190], // soft sage
-   [107,142,79],  // moss green
-   [193,109,73],  // terracotta
-   [135,175,200], // sky blue
-   [222,175,64],  // sunflower gold
-   [140,95,110]   // dusty berry
+   [235,230,215],
+   [225,215,185],
+   [220,208,175],
+   [215,220,200],
+   [205,215,190],
+   [107,142,79],
+   [193,109,73],
+   [135,175,200],
+   [222,175,64],
+   [140,95,110]
  ];
 
  for(let i=0;i<count;i++){
@@ -856,12 +854,10 @@ function drawCell(cell,time){
  cx/=cell.poly.length;
  cy/=cell.poly.length;
 
- // subtle individual sheen
  const shimmer=0.985+0.02*Math.sin(
    time*0.0000009 + cell.phase
  );
 
- // slow sunlight wave across entire surface
  const wave=0.985+0.03*Math.sin(
    cx*0.0025 + time*0.0000007
  );
@@ -918,7 +914,6 @@ function drawCell(cell,time){
  ctx.fillStyle=grad;
  ctx.fill();
 
- // pearl-silver grout with sage tint (choice 2B)
  ctx.save();
  ctx.shadowBlur=3;
  ctx.shadowColor="rgba(220,228,218,0.22)";
@@ -930,11 +925,12 @@ function drawCell(cell,time){
 
 function animate(){
 
+ if(!isPageVisible) return;
+
  try{
 
    const bg=ctx.createLinearGradient(0,0,0,c.height);
 
-   // earthy dusk-sky substrate: muted blue fading to warm soil brown
    bg.addColorStop(0,"rgb(95,120,130)");
    bg.addColorStop(1,"rgb(90,75,60)");
 
@@ -949,19 +945,28 @@ function animate(){
 
  }catch(e){
 
-   // never let a single bad frame permanently freeze the background
    console.warn("Background render error:",e);
 
  }
 
- requestAnimationFrame(animate);
+ animationFrameId = requestAnimationFrame(animate);
 }
+
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    isPageVisible = false;
+    if (animationFrameId) cancelAnimationFrame(animationFrameId);
+  } else {
+    isPageVisible = true;
+    animate();
+  }
+});
 
 resize();
 animate();
 
 
-// TIMER
+// TIMER (Robust against sleep throttling)
 let memoryStorage={};
 
 function safeGetStorage(key){
@@ -988,7 +993,6 @@ delete memoryStorage[key];
 }
 }
 
-let timerSeconds=0;
 let timerInterval=null;
 const timerBtn=document.getElementById("timerBtn");
 const timerDisplay=document.getElementById("timerDisplay");
@@ -1006,7 +1010,7 @@ startTimer(h*60+m);
 
 function startTimer(minutes){
 closeTimer();
-timerSeconds=minutes*60;
+let timerSeconds=minutes*60;
 safeSetStorage("sleepTimerEnd",Date.now()+timerSeconds*1000);
 
 if(timerInterval) clearInterval(timerInterval);
@@ -1019,9 +1023,9 @@ function updateTimer(){
 let end=safeGetStorage("sleepTimerEnd");
 if(!end)return;
 
-timerSeconds=Math.floor((end-Date.now())/1000);
+let remainingSeconds=Math.floor((end-Date.now())/1000);
 
-if(timerSeconds<=0){
+if(remainingSeconds<=0){
 clearInterval(timerInterval);
 audio.pause();
 audio.volume=1;
@@ -1031,12 +1035,12 @@ title.innerText="Listening session ended";
 return;
 }
 
-if(timerSeconds<=15){
-audio.volume=Math.max(0,timerSeconds/15);
+if(remainingSeconds<=15){
+audio.volume=Math.max(0,remainingSeconds/15);
 }
 
-let h=Math.floor(timerSeconds/3600);
-let m=Math.floor((timerSeconds%3600)/60);
+let h=Math.floor(remainingSeconds/3600);
+let m=Math.floor((remainingSeconds%3600)/60);
 
 timerDisplay.innerText=
 "⏱ "+(h>0?h+"h ":"")+m+"m";
@@ -1049,7 +1053,6 @@ timerInterval=setInterval(updateTimer,1000);
 updateTimer();
 }
 });
-
 
 </script>
 
