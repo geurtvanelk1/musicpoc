@@ -749,13 +749,18 @@ function generateMosaic(){
  const delaunay=d3.Delaunay.from(points);
  const voronoi=delaunay.voronoi([0,0,c.width,c.height]);
 
- // Spring palette (choice 1B)
+ // Palette drawn from nature: moss, earth, sky, wildflower
  const palette=[
    [235,230,215], // ivory
    [225,215,185], // champagne
-   [220,208,175], // light honey
+   [220,208,175], // light honey / wheat
    [215,220,200], // pale jade
-   [205,215,190]  // soft sage
+   [205,215,190], // soft sage
+   [107,142,79],  // moss green
+   [193,109,73],  // terracotta
+   [135,175,200], // sky blue
+   [222,175,64],  // sunflower gold
+   [140,95,110]   // dusty berry
  ];
 
  for(let i=0;i<count;i++){
@@ -859,9 +864,9 @@ function animate(){
 
  const bg=ctx.createLinearGradient(0,0,0,c.height);
 
- // soft sage-grey substrate (choice 3C)
- bg.addColorStop(0,"rgb(138,150,142)");
- bg.addColorStop(1,"rgb(108,120,116)");
+ // earthy dusk-sky substrate: muted blue fading to warm soil brown
+ bg.addColorStop(0,"rgb(95,120,130)");
+ bg.addColorStop(1,"rgb(90,75,60)");
 
  ctx.fillStyle=bg;
  ctx.fillRect(0,0,c.width,c.height);
