@@ -372,20 +372,20 @@ Minutes <input id="tm" type="number" min="0" value="30" style="width:50px">
 const tracks=[
 
 {
-title:"Sweet Jane",
-file:"sweetjane.mp3",
+title:"G'day",
+file:"G'day.mp3",
 enabled:true
 },
 
 {
-title:"Ocean",
-file:"ocean.mp3",
+title:"The Grape's Kiss",
+file:"The Grape's Kiss.mp3",
 enabled:true
 },
 
 {
-title:"Morricone",
-file:"morricone.mp3",
+title:"Tapestry",
+file:"Tapestry.mp3",
 enabled:true
 }
 
@@ -439,7 +439,7 @@ function loadTrack(i){
 currentTrack=i;
 
 audio.src=
-tracks[i].file;
+encodeURI(tracks[i].file);
 
 title.innerText=
 tracks[i].title;
