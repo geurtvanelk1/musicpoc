@@ -309,6 +309,14 @@ rgba(255,220,150,.5);
 
 }
 
+.activeButton.repeatOne,
+.activeButton.repeatOne:hover{
+
+background:
+rgba(205,148,58,.65);
+
+}
+
 #timerBtn.activeButton{
 
 animation:timerPulse 2.6s ease-in-out infinite;
@@ -984,6 +992,8 @@ setIcon(repeatBtn,repeatMode===2?"repeatOne":"repeat");
 repeatBtn.classList.toggle("dim",repeatMode===0);
 
 repeatBtn.classList.toggle("activeButton",repeatMode!==0);
+
+repeatBtn.classList.toggle("repeatOne",repeatMode===2);
 
 };
 
