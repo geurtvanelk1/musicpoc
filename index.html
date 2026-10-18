@@ -29,6 +29,7 @@ z-index:-1;
 
 .container{
 
+min-height:100vh;
 min-height:100svh;
 
 display:flex;
@@ -46,6 +47,7 @@ box-sizing:border-box;
 width:90%;
 max-width:420px;
 
+max-height:85vh;
 max-height:85svh;
 
 overflow-y:auto;
@@ -56,6 +58,7 @@ border-radius:25px;
 
 background:rgba(0,0,0,.35);
 
+-webkit-backdrop-filter:blur(15px);
 backdrop-filter:blur(15px);
 
 box-shadow:
@@ -797,7 +800,7 @@ id="playlist">
 
 <div id="timerBackdrop" class="timerBackdrop" style="display:none" onclick="closeTimer()"></div>
 
-<div id="timerModal" class="timerModal" style="display:none">
+<div id="timerModal" class="timerModal" role="dialog" aria-modal="true" aria-label="Fade-out timer" style="display:none">
 
 <div class="tmTitle">Fade-out timer</div>
 
@@ -880,6 +883,9 @@ document.getElementById("repeat");
 const shuffleBtn=
 document.getElementById("shuffle");
 
+const playlist=
+document.getElementById("playlist");
+
 
 // Icons are inline SVG so they look identical in every browser and OS
 const ICONS={
@@ -950,6 +956,7 @@ const p=audio.play();
 
 if(p&&p.catch){
 p.catch(err=>{
+if(err&&err.name==="AbortError")return;
 console.warn("Playback was prevented:",err);
 setIcon(playBtn,"play");
 });
@@ -1216,8 +1223,10 @@ audio.currentTime
 
 duration.innerText=
 format(
-audio.duration
+isFinite(audio.duration)?audio.duration:0
 );
+
+if(safeGetStorage("sleepTimerEnd"))updateTimer();
 
 });
 
@@ -1715,9 +1724,18 @@ window.addEventListener("resize",()=>{
  resizeTimeout=setTimeout(resize,150);
 });
 
+let lastFrame=0;
+
 function animate(){
 
  if(!isPageVisible) return;
+
+ const frameNow=performance.now();
+ if(frameNow-lastFrame<33){
+   animationFrameId = requestAnimationFrame(animate);
+   return;
+ }
+ lastFrame=frameNow;
 
  try{
 
@@ -1824,13 +1842,20 @@ if(e.key==="Escape")closeTimer();
 });
 
 function startCustomTimer(){
-let h=parseInt(document.getElementById("th").value)||0;
-let m=parseInt(document.getElementById("tm").value)||0;
+let h=Math.max(0,parseInt(document.getElementById("th").value)||0);
+let m=Math.max(0,parseInt(document.getElementById("tm").value)||0);
+if(h*60+m<=0){
+document.getElementById("tm").focus();
+return;
+}
 startTimer(h*60+m);
 }
 
 function startTimer(minutes){
+minutes=Number(minutes);
+if(!isFinite(minutes)||minutes<=0)return;
 closeTimer();
+audio.volume=1;
 let timerSeconds=minutes*60;
 safeSetStorage("sleepTimerEnd",Date.now()+timerSeconds*1000);
 
@@ -1841,8 +1866,18 @@ updateTimer();
 }
 
 function updateTimer(){
-let end=safeGetStorage("sleepTimerEnd");
-if(!end)return;
+let stored=safeGetStorage("sleepTimerEnd");
+if(!stored)return;
+
+let end=Number(stored);
+
+if(!isFinite(end)){
+clearInterval(timerInterval);
+safeRemoveStorage("sleepTimerEnd");
+timerBtn.classList.remove("activeButton");
+timerDisplay.innerText="";
+return;
+}
 
 let remainingSeconds=Math.ceil((end-Date.now())/1000);
 
@@ -1873,7 +1908,11 @@ timerDisplay.innerText=
 }
 
 window.addEventListener("load",()=>{
-let end=safeGetStorage("sleepTimerEnd");
+let end=Number(safeGetStorage("sleepTimerEnd"));
+if(!isFinite(end)||end<=Date.now()){
+safeRemoveStorage("sleepTimerEnd");
+end=0;
+}
 if(end){
 timerInterval=setInterval(updateTimer,250);
 updateTimer();
