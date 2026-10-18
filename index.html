@@ -372,6 +372,200 @@ cursor:pointer;
 
 }
 
+
+/* FADE-OUT TIMER POP-UP */
+
+.timerModal{
+
+position:fixed;
+
+left:50%;
+bottom:20px;
+
+transform:translateX(-50%);
+
+width:90%;
+max-width:420px;
+
+box-sizing:border-box;
+
+padding:22px 25px;
+
+border-radius:25px;
+
+background:
+linear-gradient(160deg,rgba(40,80,190,.55),rgba(10,24,85,.65));
+
+border:1px solid rgba(255,220,150,.25);
+
+-webkit-backdrop-filter:blur(18px);
+backdrop-filter:blur(18px);
+
+box-shadow:
+0 0 40px rgba(255,220,180,.18),
+0 10px 40px rgba(0,10,50,.5);
+
+color:white;
+
+z-index:10;
+
+animation:tmIn .22s ease-out;
+
+}
+
+@keyframes tmIn{
+
+from{
+opacity:0;
+transform:translateX(-50%) translateY(18px);
+}
+
+to{
+opacity:1;
+transform:translateX(-50%) translateY(0);
+}
+
+}
+
+.tmTitle{
+
+text-align:center;
+
+font-size:18px;
+font-weight:bold;
+
+margin-bottom:16px;
+
+color:rgb(255,220,150);
+
+}
+
+.tmPresets{
+
+display:grid;
+grid-template-columns:repeat(4,1fr);
+
+gap:8px;
+
+}
+
+.tmPresets button{
+
+padding:11px 0;
+
+font-size:15px;
+
+}
+
+.tmPresets button:hover{
+
+background:
+rgba(255,220,150,.35);
+
+}
+
+.tmCustom{
+
+display:flex;
+justify-content:center;
+align-items:center;
+
+flex-wrap:wrap;
+
+gap:16px;
+
+margin-top:18px;
+
+font-size:14px;
+
+opacity:.95;
+
+}
+
+.tmCustom label{
+
+display:flex;
+align-items:center;
+
+gap:8px;
+
+}
+
+.tmCustom input{
+
+width:58px;
+
+box-sizing:border-box;
+
+padding:8px 6px;
+
+border-radius:10px;
+
+border:1px solid rgba(255,220,150,.35);
+
+background:
+rgba(255,255,255,.12);
+
+color:white;
+
+font-family:inherit;
+font-size:16px;
+
+text-align:center;
+
+color-scheme:dark;
+
+}
+
+.tmCustom input:focus{
+
+outline:none;
+
+border-color:rgb(255,220,150);
+
+box-shadow:
+0 0 8px rgba(255,220,150,.5);
+
+}
+
+.tmActions{
+
+display:flex;
+justify-content:center;
+
+gap:10px;
+
+margin-top:20px;
+
+}
+
+.tmActions button{
+
+min-width:96px;
+
+padding:11px 18px;
+
+font-size:15px;
+
+}
+
+.tmActions .tmStart,
+.tmActions .tmStart:hover{
+
+background:
+rgba(255,220,150,.5);
+
+font-weight:bold;
+
+}
+
+.tmActions .tmStart:hover{
+
+background:
+rgba(255,220,150,.65);
+
+}
+
 </style>
 
 </head>
@@ -452,20 +646,27 @@ id="playlist">
 
 
 
-<div id="timerModal" style="display:none;position:fixed;bottom:0;left:0;width:100%;background:rgba(20,20,20,.95);padding:20px;border-radius:20px 20px 0 0;z-index:10;color:white">
-<div><b>Fade-out timer</b></div>
-<div style="margin-top:10px">
+<div id="timerModal" class="timerModal" style="display:none">
+
+<div class="tmTitle">Fade-out timer</div>
+
+<div class="tmPresets">
 <button onclick="startTimer(15)">15m</button>
 <button onclick="startTimer(30)">30m</button>
 <button onclick="startTimer(45)">45m</button>
 <button onclick="startTimer(60)">60m</button>
 </div>
-<div style="margin-top:10px">
-Hours <input id="th" type="number" min="0" value="0" style="width:50px">
-Minutes <input id="tm" type="number" min="0" value="30" style="width:50px">
-<button onclick="startCustomTimer()">Start</button>
-<button onclick="closeTimer()">Close</button>
+
+<div class="tmCustom">
+<label>Hours <input id="th" type="number" min="0" value="0"></label>
+<label>Minutes <input id="tm" type="number" min="0" value="30"></label>
 </div>
+
+<div class="tmActions">
+<button class="tmStart" onclick="startCustomTimer()">Start</button>
+<button class="tmClose" onclick="closeTimer()">Close</button>
+</div>
+
 </div>
 
 <audio id="audio"></audio>
