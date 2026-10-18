@@ -620,6 +620,7 @@ box-shadow:
 .tmActions{
 
 display:flex;
+flex-wrap:wrap;
 justify-content:center;
 
 gap:10px;
@@ -635,6 +636,20 @@ min-width:96px;
 padding:11px 18px;
 
 font-size:15px;
+
+}
+
+.tmActions .tmStop{
+
+background:
+rgba(214,100,38,.5);
+
+}
+
+.tmActions .tmStop:hover{
+
+background:
+rgba(214,100,38,.68);
 
 }
 
@@ -800,6 +815,7 @@ id="playlist">
 
 <div class="tmActions">
 <button class="tmStart" onclick="startCustomTimer()">Start</button>
+<button id="tmStop" class="tmStop" style="display:none" onclick="cancelTimer()">Stop timer</button>
 <button class="tmClose" onclick="closeTimer()">Close</button>
 </div>
 
@@ -1783,6 +1799,8 @@ const timerModal=document.getElementById("timerModal");
 const timerBackdrop=document.getElementById("timerBackdrop");
 
 timerBtn.onclick=()=>{
+document.getElementById("tmStop").style.display=
+safeGetStorage("sleepTimerEnd")?"inline-flex":"none";
 timerBackdrop.style.display="block";
 timerModal.style.display="block";
 }
@@ -1790,6 +1808,15 @@ timerModal.style.display="block";
 function closeTimer(){
 timerModal.style.display="none";
 timerBackdrop.style.display="none";
+}
+
+function cancelTimer(){
+if(timerInterval) clearInterval(timerInterval);
+safeRemoveStorage("sleepTimerEnd");
+audio.volume=1;
+timerDisplay.innerText="";
+timerBtn.classList.remove("activeButton");
+closeTimer();
 }
 
 document.addEventListener("keydown",e=>{
