@@ -335,6 +335,12 @@ animation:none;
 
 }
 
+#timerDisplay{
+
+font-variant-numeric:tabular-nums;
+
+}
+
 .playlist{
 
 margin-top:20px;
@@ -1722,7 +1728,7 @@ safeSetStorage("sleepTimerEnd",Date.now()+timerSeconds*1000);
 
 if(timerInterval) clearInterval(timerInterval);
 
-timerInterval=setInterval(updateTimer,1000);
+timerInterval=setInterval(updateTimer,250);
 updateTimer();
 }
 
@@ -1730,7 +1736,7 @@ function updateTimer(){
 let end=safeGetStorage("sleepTimerEnd");
 if(!end)return;
 
-let remainingSeconds=Math.floor((end-Date.now())/1000);
+let remainingSeconds=Math.ceil((end-Date.now())/1000);
 
 if(remainingSeconds<=0){
 clearInterval(timerInterval);
@@ -1751,15 +1757,16 @@ audio.volume=Math.max(0,remainingSeconds/15);
 
 let h=Math.floor(remainingSeconds/3600);
 let m=Math.floor((remainingSeconds%3600)/60);
+let sec=remainingSeconds%60;
 
 timerDisplay.innerText=
-(h>0?h+"h ":"")+m+"m";
+(h>0?h+":"+(m<10?"0":""):"")+m+":"+(sec<10?"0":"")+sec;
 }
 
 window.addEventListener("load",()=>{
 let end=safeGetStorage("sleepTimerEnd");
 if(end){
-timerInterval=setInterval(updateTimer,1000);
+timerInterval=setInterval(updateTimer,250);
 updateTimer();
 }
 });
