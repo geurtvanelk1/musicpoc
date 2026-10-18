@@ -269,7 +269,6 @@ cursor:pointer;
 
 </style>
 
-<script src="https://cdn.jsdelivr.net/npm/d3-delaunay@6"></script>
 </head>
 
 <body>
@@ -774,21 +773,439 @@ return m+":"+s;
 
 
 
-// BACKGROUND & VISIBILITY OPTIMIZATION
+// BACKGROUND: "Ripples on the pond" - turquoise water, ripples, lily pads, water plants
 const c=document.getElementById("bg");
 const ctx=c.getContext("2d");
-let cells=[];
 let animationFrameId = null;
 let isPageVisible = true;
+let patternLayer=null;
+
+// Seeded random so the hand-made look stays the same on every load / resize
+let seed=20261018;
+function rand(){
+ seed|=0; seed=seed+0x6D2B79F5|0;
+ let t=Math.imul(seed^seed>>>15,1|seed);
+ t=t+Math.imul(t^t>>>7,61|t)^t;
+ return ((t^t>>>14)>>>0)/4294967296;
+}
+function rr(a,b){return a+rand()*(b-a);}
+
+// A slightly irregular, hand-drawn ripple ring (squashed for pond perspective)
+function wobblyRing(g,cx,cy,r,sq,wob){
+ const n=56;
+ const p1=rand()*6.28, p2=rand()*6.28;
+ g.beginPath();
+ for(let k=0;k<=n;k++){
+   const a=k/n*Math.PI*2;
+   const rad=r*(1+wob*Math.sin(a*3+p1)+wob*0.6*Math.sin(a*5+p2));
+   const x=cx+Math.cos(a)*rad;
+   const y=cy+Math.sin(a)*rad*sq;
+   if(k===0) g.moveTo(x,y); else g.lineTo(x,y);
+ }
+}
+
+// A cluster of concentric ripples spreading from one point
+function drawRippleCluster(g,cx,cy,size){
+ const rings=Math.floor(rr(4,8));
+ const gap=size/rings;
+ const sq=rr(0.5,0.62);
+ for(let i=0;i<rings;i++){
+   const r=gap*0.5+i*gap*rr(0.92,1.12);
+   const fade=1-i/rings;
+   const orange=(i%4===2)&&rand()<0.6;
+   g.strokeStyle=orange
+     ?"rgba(240,140,55,"+(0.28+0.4*fade)+")"
+     :"rgba(255,236,190,"+(0.20+0.42*fade)+")";
+   g.lineWidth=rr(1.0,2.2)*(0.6+fade*0.6);
+   if(rand()<0.35){
+     g.setLineDash([rr(14,40),rr(5,16)]);
+   }else{
+     g.setLineDash([]);
+   }
+   wobblyRing(g,cx,cy,r,sq,rr(0.01,0.035));
+   g.stroke();
+ }
+ g.setLineDash([]);
+
+ // faint lighter water inside the first ring
+ const rg=g.createRadialGradient(cx,cy,0,cx,cy,gap*1.6);
+ rg.addColorStop(0,"rgba(190,225,255,0.20)");
+ rg.addColorStop(1,"rgba(190,225,255,0)");
+ g.save();
+ g.translate(cx,cy);
+ g.scale(1,sq);
+ g.translate(-cx,-cy);
+ g.fillStyle=rg;
+ g.fillRect(cx-gap*1.6,cy-gap*1.6,gap*3.2,gap*3.2);
+ g.restore();
+}
+
+// A lily pad with a notch, veins and a rim, drawn flat on the pond
+function drawLilyPad(g,cx,cy,r,orange){
+ const sq=rr(0.55,0.7);
+ const rot=rand()*Math.PI*2;
+ const notch=rr(0.22,0.34);
+ const col=orange?"rgba(214,104,40,0.55)":"rgba(38,150,112,0.62)";
+ const rim=orange?"rgba(255,205,140,0.6)":"rgba(200,245,215,0.55)";
+
+ g.save();
+ g.translate(cx,cy);
+ g.scale(1,sq);
+ g.rotate(rot);
+
+ g.beginPath();
+ g.moveTo(0,0);
+ g.arc(0,0,r,notch,Math.PI*2-notch);
+ g.closePath();
+ g.fillStyle=col;
+ g.fill();
+ g.strokeStyle=rim;
+ g.lineWidth=1.4;
+ g.stroke();
+
+ // veins
+ g.strokeStyle="rgba(255,240,200,0.35)";
+ g.lineWidth=0.8;
+ for(let k=0;k<9;k++){
+   const a=notch+(Math.PI*2-notch*2)*(k+0.5)/9;
+   g.beginPath();
+   g.moveTo(0,0);
+   g.lineTo(Math.cos(a)*r*0.92,Math.sin(a)*r*0.92);
+   g.stroke();
+ }
+ g.restore();
+
+ // soft shadow in the water under the pad
+ g.fillStyle="rgba(0,25,70,0.14)";
+ g.beginPath();
+ g.ellipse(cx+3,cy+4,r*1.02,r*sq*1.02,0,0,Math.PI*2);
+ g.fill();
+}
+
+// A small lotus flower in cream and orange
+function drawLotus(g,cx,cy,r){
+ const petals=8;
+ for(let ring=0;ring<2;ring++){
+   for(let k=0;k<petals;k++){
+     const a=k/petals*Math.PI*2+ring*Math.PI/petals+rr(-0.08,0.08);
+     const len=r*(ring?0.62:1);
+     const px=Math.cos(a), py=Math.sin(a)*0.62;
+     const tx=cx+px*len, ty=cy+py*len;
+     const nx=-py, ny=px;
+     const w=len*0.34;
+     g.beginPath();
+     g.moveTo(cx,cy);
+     g.quadraticCurveTo(cx+px*len*0.5+nx*w,cy+py*len*0.5+ny*w,tx,ty);
+     g.quadraticCurveTo(cx+px*len*0.5-nx*w,cy+py*len*0.5-ny*w,cx,cy);
+     g.fillStyle=ring?"rgba(246,150,70,0.85)":"rgba(255,236,205,0.78)";
+     g.fill();
+     g.strokeStyle="rgba(255,255,235,0.55)";
+     g.lineWidth=0.8;
+     g.stroke();
+   }
+ }
+ g.fillStyle="rgba(255,205,90,0.9)";
+ g.beginPath();
+ g.arc(cx,cy,r*0.13,0,Math.PI*2);
+ g.fill();
+}
+
+// A single leaf with a midrib (for trailing water plants)
+function drawLeaf(g,x,y,ang,size,orange){
+ const tx=x+Math.cos(ang)*size, ty=y+Math.sin(ang)*size;
+ const px=-Math.sin(ang), py=Math.cos(ang);
+ const mx=x+Math.cos(ang)*size*0.5, my=y+Math.sin(ang)*size*0.5;
+ const w=size*0.38;
+
+ g.beginPath();
+ g.moveTo(x,y);
+ g.quadraticCurveTo(mx+px*w,my+py*w,tx,ty);
+ g.quadraticCurveTo(mx-px*w,my-py*w,x,y);
+ g.closePath();
+
+ g.fillStyle=orange?"rgba(226,112,42,0.60)":"rgba(150,225,195,0.50)";
+ g.fill();
+ g.strokeStyle="rgba(255,230,175,0.45)";
+ g.lineWidth=0.8;
+ g.stroke();
+
+ g.beginPath();
+ g.moveTo(x,y);
+ g.lineTo(mx+(tx-mx)*0.8,my+(ty-my)*0.8);
+ g.strokeStyle="rgba(255,230,175,0.35)";
+ g.stroke();
+}
+
+// Spiral tendril at the end of a water-plant vine
+function drawCurl(g,x,y,ang,size){
+ g.beginPath();
+ g.moveTo(x,y);
+ const dir=rand()<.5?1:-1;
+ let a=ang, r=size, px=x, py=y;
+ for(let k=0;k<18;k++){
+   a+=dir*0.45;
+   r*=0.9;
+   px+=Math.cos(a)*r*0.5;
+   py+=Math.sin(a)*r*0.5;
+   g.lineTo(px,py);
+ }
+ g.lineWidth=1.3;
+ g.stroke();
+}
+
+// Meandering trailing vine with leaves, buds and branches
+function growVine(g,x,y,ang,len,wd,depth,col){
+
+ const step=8;
+ const n=Math.floor(len/step);
+ let px=x,py=y,a=ang;
+ let drift=(rand()-.5)*0.12;
+ let side=rand()<.5?1:-1;
+
+ g.lineCap="round";
+ g.lineJoin="round";
+
+ for(let s=0;s<n;s++){
+
+   drift+=(rand()-.5)*0.07;
+   drift=Math.max(-0.16,Math.min(0.16,drift))*0.97;
+   a+=drift;
+
+   const nx=px+Math.cos(a)*step;
+   const ny=py+Math.sin(a)*step;
+   const prog=s/n;
+
+   g.strokeStyle=col;
+   g.lineWidth=Math.max(0.9,wd*(1-prog*0.65));
+   g.beginPath();
+   g.moveTo(px,py);
+   g.lineTo(nx,ny);
+   g.stroke();
+
+   const leafSize=rr(12,19)*(1-prog*0.45);
+
+   if(s%3===1){
+     drawLeaf(g,nx,ny,a+side*rr(0.8,1.3),leafSize,rand()<0.45);
+     side=-side;
+   }
+
+   if(rand()<0.045){
+     g.fillStyle="rgba(240,130,45,0.85)";
+     g.beginPath();
+     g.arc(nx+rr(-5,5),ny+rr(-5,5),rr(2.5,3.8),0,Math.PI*2);
+     g.fill();
+   }
+
+   if(depth>0&&s>3&&s<n-4&&rand()<0.06){
+     growVine(g,nx,ny,a+(rand()<.5?1:-1)*rr(0.6,1.1),len*0.42,wd*0.7,depth-1,col);
+     g.lineCap="round";
+   }
+
+   px=nx;py=ny;
+ }
+
+ g.strokeStyle=col;
+ drawCurl(g,px,py,a,14);
+}
+
+function buildPattern(){
+
+ seed=20261018;
+
+ const w=c.width, h=c.height;
+ const base=document.createElement("canvas");
+ base.width=w; base.height=h;
+ const g=base.getContext("2d");
+ const big=Math.max(w,h);
+
+ // 1. Pond water: deeper at the edges, lighter turquoise in the middle
+ const bg=g.createLinearGradient(0,0,w,h);
+ bg.addColorStop(0,"rgb(36,128,196)");
+ bg.addColorStop(0.5,"rgb(26,82,180)");
+ bg.addColorStop(1,"rgb(14,44,128)");
+ g.fillStyle=bg;
+ g.fillRect(0,0,w,h);
+
+ // 2. Mottled depth in the water, with a few warm orange reflections
+ for(let i=0;i<46;i++){
+   const x=rand()*w, y=rand()*h, r=rr(0.08,0.28)*big;
+   const k=rand();
+   let col;
+   if(k<0.34) col="95,170,240,0.20";
+   else if(k<0.68) col="6,30,105,0.26";
+   else if(k<0.84) col="235,222,185,0.07";
+   else col="214,100,38,0.15";
+   const rg=g.createRadialGradient(x,y,0,x,y,r);
+   rg.addColorStop(0,"rgba("+col+")");
+   rg.addColorStop(1,"rgba("+col.replace(/,[^,]*$/,",0")+")");
+   g.fillStyle=rg;
+   g.fillRect(x-r,y-r,r*2,r*2);
+ }
+
+ // sunset-like warm reflection on the water
+ const warm=g.createRadialGradient(w*0.95,h*1.0,0,w*0.95,h*1.0,big*0.7);
+ warm.addColorStop(0,"rgba(226,112,42,0.32)");
+ warm.addColorStop(1,"rgba(226,112,42,0)");
+ g.fillStyle=warm;
+ g.fillRect(0,0,w,h);
+
+ const warm2=g.createRadialGradient(w*0.02,h*0.02,0,w*0.02,h*0.02,big*0.45);
+ warm2.addColorStop(0,"rgba(232,130,50,0.22)");
+ warm2.addColorStop(1,"rgba(232,130,50,0)");
+ g.fillStyle=warm2;
+ g.fillRect(0,0,w,h);
+
+ // 3. Fine surface grain
+ const grains=Math.floor(w*h/120);
+ for(let i=0;i<grains;i++){
+   g.fillStyle=rand()<0.5?"rgba(255,255,240,"+rr(0.02,0.07)+")":"rgba(0,20,75,"+rr(0.03,0.10)+")";
+   g.fillRect(rand()*w,rand()*h,rr(0.8,2.2),rr(0.8,2.2));
+ }
+
+ // 4. Ornament layer (ripples, lily pads, lotus, water plants) so it can be worn away
+ const orn=document.createElement("canvas");
+ orn.width=w; orn.height=h;
+ const o=orn.getContext("2d");
+
+ // ripple clusters, spread in a loose grid with jitter so they cover the pond
+ const cell=Math.max(150,Math.min(230,Math.min(w,h)/3));
+ const cols=Math.ceil(w/cell)+1;
+ const rows=Math.ceil(h/cell)+1;
+ for(let j=0;j<rows;j++){
+   for(let i=0;i<cols;i++){
+     if(rand()<0.18) continue;
+     const x=(i+rr(0.1,0.9))*cell-cell*0.25;
+     const y=(j+rr(0.1,0.9))*cell-cell*0.25;
+     drawRippleCluster(o,x,y,cell*rr(0.55,0.95));
+   }
+ }
+
+ // lily pads, some with a lotus flower
+ const padCount=Math.round(w*h/52000)+5;
+ for(let i=0;i<padCount;i++){
+   const x=rand()*w, y=rand()*h, r=rr(22,48);
+   drawLilyPad(o,x,y,r,rand()<0.22);
+   if(rand()<0.3) drawLotus(o,x+rr(-6,6),y+rr(-4,4),r*0.62);
+ }
+
+ // trailing water plants creeping in from the edges
+ const vineCount=Math.round((w+h)/330)+3;
+ for(let v=0;v<vineCount;v++){
+   let x,y,ang;
+   const side=Math.floor(rand()*4);
+   if(side===0){x=rand()*w;y=-10;ang=Math.PI/2+rr(-0.7,0.7);}
+   else if(side===1){x=w+10;y=rand()*h;ang=Math.PI+rr(-0.7,0.7);}
+   else if(side===2){x=rand()*w;y=h+10;ang=-Math.PI/2+rr(-0.7,0.7);}
+   else{x=-10;y=rand()*h;ang=rr(-0.7,0.7);}
+   const col=rand()<0.55?"rgba(255,226,170,0.78)":"rgba(232,122,46,0.82)";
+   growVine(o,x,y,ang,Math.min(w,h)*rr(0.4,0.8),rr(2.4,3.2),2,col);
+ }
+
+ // 5. Wear: rub patches, specks and scratches off the ornament
+ o.globalCompositeOperation="destination-out";
+
+ for(let i=0;i<14;i++){
+   const x=rand()*w, y=rand()*h, r=rr(60,200);
+   const rg=o.createRadialGradient(x,y,0,x,y,r);
+   const a=rr(0.30,0.65);
+   rg.addColorStop(0,"rgba(0,0,0,"+a+")");
+   rg.addColorStop(1,"rgba(0,0,0,0)");
+   o.fillStyle=rg;
+   o.fillRect(x-r,y-r,r*2,r*2);
+ }
+
+ const specks=Math.floor(w*h/300);
+ for(let i=0;i<specks;i++){
+   o.fillStyle="rgba(0,0,0,"+rr(0.3,0.9)+")";
+   o.beginPath();
+   o.arc(rand()*w,rand()*h,rr(0.5,2.0),0,Math.PI*2);
+   o.fill();
+ }
+
+ o.lineCap="round";
+ for(let i=0;i<28;i++){
+   const x=rand()*w, y=rand()*h, a=rand()*Math.PI*2, l=rr(18,80);
+   o.strokeStyle="rgba(0,0,0,"+rr(0.3,0.65)+")";
+   o.lineWidth=rr(0.5,1.3);
+   o.beginPath();
+   o.moveTo(x,y);
+   o.quadraticCurveTo(
+     x+Math.cos(a+0.3)*l*0.5,y+Math.sin(a+0.3)*l*0.5,
+     x+Math.cos(a)*l,y+Math.sin(a)*l
+   );
+   o.stroke();
+ }
+ o.globalCompositeOperation="source-over";
+
+ // 6. Lay the ornament on the water with a faint shadow
+ g.save();
+ g.shadowColor="rgba(0,18,60,0.38)";
+ g.shadowBlur=2;
+ g.shadowOffsetX=1;
+ g.shadowOffsetY=1;
+ g.drawImage(orn,0,0);
+ g.restore();
+
+ // 7. Soft vignette for depth and readability
+ const vg=g.createRadialGradient(
+   w/2,h/2,Math.min(w,h)*0.2,
+   w/2,h/2,Math.max(w,h)*0.75
+ );
+ vg.addColorStop(0,"rgba(0,20,75,0)");
+ vg.addColorStop(1,"rgba(6,12,48,0.45)");
+ g.fillStyle=vg;
+ g.fillRect(0,0,w,h);
+
+ patternLayer=base;
+}
+
+// Live ripples: now and then a drop touches the pond and rings spread out and fade
+let liveRipples=[];
+let nextRippleAt=0;
+
+function drawLiveRipples(now){
+
+ if(now>=nextRippleAt){
+   liveRipples.push({
+     x:Math.random()*c.width,
+     y:Math.random()*c.height,
+     born:now,
+     life:7000+Math.random()*3000,
+     max:110+Math.random()*110
+   });
+   if(liveRipples.length>6) liveRipples.shift();
+   nextRippleAt=now+1800+Math.random()*2600;
+ }
+
+ liveRipples=liveRipples.filter(r=>now-r.born<r.life);
+
+ for(const r of liveRipples){
+   const p=(now-r.born)/r.life;
+   const ease=1-Math.pow(1-p,2);
+   for(let k=0;k<4;k++){
+     const pk=ease-k*0.11;
+     if(pk<=0) continue;
+     const rad=r.max*pk;
+     const alpha=(1-p)*(1-k*0.2)*0.38;
+     ctx.strokeStyle=(k===2)
+       ?"rgba(255,170,90,"+alpha+")"
+       :"rgba(255,240,205,"+alpha+")";
+     ctx.lineWidth=1.8-k*0.3;
+     ctx.beginPath();
+     ctx.ellipse(r.x,r.y,rad,rad*0.58,0,0,Math.PI*2);
+     ctx.stroke();
+   }
+ }
+}
 
 function resize(){
  c.width=window.innerWidth;
  c.height=window.innerHeight;
  try{
-   generateMosaic();
+   buildPattern();
  }catch(e){
-   console.warn("Background mosaic unavailable:",e);
-   cells=[];
+   console.warn("Background pattern unavailable:",e);
+   patternLayer=null;
  }
 }
 
@@ -798,150 +1215,31 @@ window.addEventListener("resize",()=>{
  resizeTimeout=setTimeout(resize,150);
 });
 
-function generateMosaic(){
-
- cells=[];
-
- if(typeof d3==="undefined"||!d3.Delaunay){
-   return;
- }
-
- const count=100;
- const points=[];
-
- for(let i=0;i<count;i++){
-   points.push([Math.random()*c.width,Math.random()*c.height]);
- }
-
- const delaunay=d3.Delaunay.from(points);
- const voronoi=delaunay.voronoi([0,0,c.width,c.height]);
-
- const palette=[
-   [235,230,215],
-   [225,215,185],
-   [220,208,175],
-   [215,220,200],
-   [205,215,190],
-   [107,142,79],
-   [193,109,73],
-   [135,175,200],
-   [222,175,64],
-   [140,95,110]
- ];
-
- for(let i=0;i<count;i++){
-
-   const poly=voronoi.cellPolygon(i);
-   if(!poly) continue;
-
-   cells.push({
-      poly,
-      color:palette[Math.floor(Math.random()*palette.length)],
-      phase:Math.random()*Math.PI*2
-   });
- }
-}
-
-function drawCell(cell,time){
-
- let cx=0,cy=0;
-
- for(const p of cell.poly){
-   cx+=p[0];
-   cy+=p[1];
- }
-
- cx/=cell.poly.length;
- cy/=cell.poly.length;
-
- const shimmer=0.985+0.02*Math.sin(
-   time*0.0000009 + cell.phase
- );
-
- const wave=0.985+0.03*Math.sin(
-   cx*0.0025 + time*0.0000007
- );
-
- const factor=shimmer*wave;
-
- const r=Math.min(255,cell.color[0]*factor);
- const g=Math.min(255,cell.color[1]*factor);
- const b=Math.min(255,cell.color[2]*factor);
-
- ctx.beginPath();
-
- for(let i=0;i<cell.poly.length;i++){
-
-   const p0=cell.poly[i];
-   const p1=cell.poly[(i+1)%cell.poly.length];
-
-   const mx=(p0[0]+p1[0])/2;
-   const my=(p0[1]+p1[1])/2;
-
-   const sharp=((i+Math.floor(cell.phase*100))%5===0);
-
-   if(i===0){
-      ctx.moveTo(mx,my);
-   }else if(sharp){
-      ctx.lineTo(mx,my);
-   }else{
-      ctx.quadraticCurveTo(
-         p0[0],
-         p0[1],
-         mx,
-         my
-      );
-   }
- }
-
- ctx.closePath();
-
- const grad=ctx.createRadialGradient(
-   cx,cy,4,
-   cx,cy,140
- );
-
- grad.addColorStop(
-   0,
-   `rgba(${Math.min(255,r+8)},${Math.min(255,g+8)},${Math.min(255,b+8)},0.32)`
- );
-
- grad.addColorStop(
-   1,
-   `rgba(${r},${g},${b},0.24)`
- );
-
- ctx.fillStyle=grad;
- ctx.fill();
-
- ctx.save();
- ctx.shadowBlur=3;
- ctx.shadowColor="rgba(220,228,218,0.22)";
- ctx.strokeStyle="rgba(215,220,205,0.65)";
- ctx.lineWidth=1.8;
- ctx.stroke();
- ctx.restore();
-}
-
 function animate(){
 
  if(!isPageVisible) return;
 
  try{
 
-   const bg=ctx.createLinearGradient(0,0,0,c.height);
+   if(patternLayer){
+     ctx.drawImage(patternLayer,0,0);
+   }else{
+     ctx.fillStyle="rgb(14,124,136)";
+     ctx.fillRect(0,0,c.width,c.height);
+   }
 
-   bg.addColorStop(0,"rgb(95,120,130)");
-   bg.addColorStop(1,"rgb(90,75,60)");
+   // very slow, gentle light sweep for a shimmering glaze effect
+   const t=performance.now()*0.00004;
+   const lx=c.width*(0.5+0.4*Math.sin(t));
+   const ly=c.height*(0.5+0.3*Math.cos(t*0.8));
 
-   ctx.fillStyle=bg;
+   const glow=ctx.createRadialGradient(lx,ly,0,lx,ly,Math.max(c.width,c.height)*0.5);
+   glow.addColorStop(0,"rgba(255,245,210,0.10)");
+   glow.addColorStop(1,"rgba(255,245,210,0)");
+   ctx.fillStyle=glow;
    ctx.fillRect(0,0,c.width,c.height);
 
-   const now=performance.now();
-
-   for(const cell of cells){
-     drawCell(cell,now);
-   }
+   drawLiveRipples(performance.now());
 
  }catch(e){
 
