@@ -144,6 +144,17 @@ box-shadow:
 
 }
 
+.progress::-moz-range-track{
+
+height:6px;
+
+border-radius:10px;
+
+background:
+rgba(255,220,150,.25);
+
+}
+
 .progress::-moz-range-thumb{
 
 width:18px;
@@ -189,6 +200,16 @@ flex-wrap:wrap;
 
 button{
 
+-webkit-appearance:none;
+-moz-appearance:none;
+appearance:none;
+
+display:inline-flex;
+align-items:center;
+justify-content:center;
+
+margin:0;
+
 padding:10px 14px;
 
 border:none;
@@ -197,16 +218,91 @@ border-radius:12px;
 
 cursor:pointer;
 
-font-size:18px;
+font-family:inherit;
+font-size:16px;
+line-height:1;
 
 background:
 rgba(255,255,255,.15);
 
 color:white;
 
+-webkit-tap-highlight-color:transparent;
+touch-action:manipulation;
+user-select:none;
+-webkit-user-select:none;
+
+transition:background .15s,transform .1s;
+
 }
 
-.activeButton{
+button:hover{
+
+background:
+rgba(255,255,255,.25);
+
+}
+
+button:active{
+
+transform:scale(.94);
+
+}
+
+button:focus{
+
+outline:none;
+
+}
+
+button:focus-visible{
+
+outline:2px solid rgba(255,220,150,.9);
+outline-offset:2px;
+
+}
+
+.controls button{
+
+min-width:46px;
+height:42px;
+
+padding:0 12px;
+
+}
+
+.ic{
+
+width:20px;
+height:20px;
+
+display:block;
+
+fill:currentColor;
+
+pointer-events:none;
+
+}
+
+.ic.stroke{
+
+fill:none;
+
+stroke:currentColor;
+stroke-width:2;
+stroke-linecap:round;
+stroke-linejoin:round;
+
+}
+
+.dim{
+
+opacity:.55;
+
+}
+
+.activeButton,
+.activeButton:hover{
 
 background:
 rgba(255,220,150,.5);
@@ -257,7 +353,16 @@ cursor:pointer;
 
 margin-right:10px;
 
-font-size:18px;
+display:inline-flex;
+
+color:rgb(255,220,150);
+
+}
+
+.check .ic{
+
+width:22px;
+height:22px;
 
 }
 
@@ -320,16 +425,16 @@ max="100">
 
 <div class="controls">
 
-<button id="prev">⏮</button>
+<button id="prev" aria-label="Previous track" title="Previous"></button>
 
-<button id="play">▶</button>
+<button id="play" aria-label="Play / pause" title="Play / pause"></button>
 
-<button id="next">⏭</button>
+<button id="next" aria-label="Next track" title="Next"></button>
 
-<button id="repeat">↩</button>
+<button id="repeat" aria-label="Repeat" title="Repeat"></button>
 
-<button id="shuffle">🔀</button>
-<button id="timerBtn">⏱</button>
+<button id="shuffle" aria-label="Shuffle" title="Shuffle"></button>
+<button id="timerBtn" aria-label="Fade-out timer" title="Fade-out timer"></button>
 <span id="timerDisplay" style="font-size:12px;opacity:.8;"></span>
 
 </div>
@@ -423,6 +528,38 @@ const shuffleBtn=
 document.getElementById("shuffle");
 
 
+// Icons are inline SVG so they look identical in every browser and OS
+const ICONS={
+prev:{fill:true,body:'<path d="M6 5h2.2v14H6z"/><path d="M20 5.2v13.6L9.2 12z"/>'},
+next:{fill:true,body:'<path d="M15.8 5H18v14h-2.2z"/><path d="M4 5.2v13.6L14.8 12z"/>'},
+play:{fill:true,body:'<path d="M7 4.6v14.8L19.5 12z"/>'},
+pause:{fill:true,body:'<rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/>'},
+repeat:{body:'<path d="M17 2.5l4 4-4 4"/><path d="M3 11.5v-1.5a3.5 3.5 0 0 1 3.5-3.5H21"/><path d="M7 21.5l-4-4 4-4"/><path d="M21 12.5v1.5a3.5 3.5 0 0 1-3.5 3.5H3"/>'},
+repeatOne:{body:'<path d="M17 2.5l4 4-4 4"/><path d="M3 11.5v-1.5a3.5 3.5 0 0 1 3.5-3.5H21"/><path d="M7 21.5l-4-4 4-4"/><path d="M21 12.5v1.5a3.5 3.5 0 0 1-3.5 3.5H3"/><path d="M11 10.5l1.6-1v7"/>'},
+shuffle:{body:'<path d="M16 3h5v5"/><path d="M4 20L21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/>'},
+timer:{body:'<circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4l2.5 2.5"/><path d="M9.5 2.5h5"/>'},
+checkOn:{body:'<rect x="3.5" y="3.5" width="17" height="17" rx="4.5" style="fill:rgba(255,220,150,.28)"/><path d="M8 12.5l3 3 5.2-6"/>'},
+checkOff:{body:'<rect x="3.5" y="3.5" width="17" height="17" rx="4.5"/>'}
+};
+
+function icon(name){
+const i=ICONS[name];
+return '<svg class="ic'+(i.fill?'':' stroke')+'" viewBox="0 0 24 24" aria-hidden="true">'+i.body+'</svg>';
+}
+
+function setIcon(btn,name){
+btn.innerHTML=icon(name);
+}
+
+setIcon(document.getElementById("prev"),"prev");
+setIcon(document.getElementById("play"),"play");
+setIcon(document.getElementById("next"),"next");
+setIcon(document.getElementById("repeat"),"repeat");
+document.getElementById("repeat").classList.add("dim");
+setIcon(document.getElementById("shuffle"),"shuffle");
+setIcon(document.getElementById("timerBtn"),"timer");
+
+
 
 function getEnabledTracks(){
 
@@ -460,7 +597,7 @@ const p=audio.play();
 if(p&&p.catch){
 p.catch(err=>{
 console.warn("Playback was prevented:",err);
-playBtn.innerText="▶";
+setIcon(playBtn,"play");
 });
 }
 
@@ -476,7 +613,7 @@ loadTrack(i);
 
 safePlay();
 
-playBtn.innerText="⏸";
+setIcon(playBtn,"pause");
 
 }
 
@@ -498,7 +635,7 @@ ${i===currentTrack?"activeSong":""}
 class="check"
 onclick="toggleTrack(${i})">
 
-${t.enabled?"☑":"☐"}
+${t.enabled?icon("checkOn"):icon("checkOff")}
 
 </span>
 
@@ -551,14 +688,14 @@ if(audio.paused){
 
 safePlay();
 
-playBtn.innerText="⏸";
+setIcon(playBtn,"pause");
 
 }
 else{
 
 audio.pause();
 
-playBtn.innerText="▶";
+setIcon(playBtn,"play");
 
 }
 
@@ -573,9 +710,11 @@ repeatMode++;
 if(repeatMode>2)
 repeatMode=0;
 
-repeatBtn.innerText=
-["↩","🔁","🔂"]
-[repeatMode];
+setIcon(repeatBtn,repeatMode===2?"repeatOne":"repeat");
+
+repeatBtn.classList.toggle("dim",repeatMode===0);
+
+repeatBtn.classList.toggle("activeButton",repeatMode!==0);
 
 };
 
@@ -642,7 +781,7 @@ else{
 
 audio.pause();
 
-playBtn.innerText="▶";
+setIcon(playBtn,"play");
 
 return;
 
@@ -747,7 +886,7 @@ tracks[currentTrack]&&tracks[currentTrack].file
 
 title.innerText="Unable to play this track";
 
-playBtn.innerText="▶";
+setIcon(playBtn,"play");
 
 }
 );
@@ -1341,7 +1480,7 @@ let h=Math.floor(remainingSeconds/3600);
 let m=Math.floor((remainingSeconds%3600)/60);
 
 timerDisplay.innerText=
-"⏱ "+(h>0?h+"h ":"")+m+"m";
+(h>0?h+"h ":"")+m+"m";
 }
 
 window.addEventListener("load",()=>{
