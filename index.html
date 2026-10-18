@@ -876,6 +876,7 @@ setIcon(document.getElementById("next"),"next");
 setIcon(document.getElementById("repeat"),"repeat");
 document.getElementById("repeat").classList.add("dim");
 setIcon(document.getElementById("shuffle"),"shuffle");
+document.getElementById("shuffle").classList.add("dim");
 setIcon(document.getElementById("timerBtn"),"timer");
 
 
@@ -1051,6 +1052,8 @@ shuffle=!shuffle;
 shuffleBtn.classList.toggle(
 "activeButton"
 );
+
+shuffleBtn.classList.toggle("dim",!shuffle);
 
 };
 
