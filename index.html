@@ -952,6 +952,9 @@ playBtn.onclick=()=>{
 
 if(audio.paused){
 
+title.innerText=
+tracks[currentTrack].title;
+
 safePlay();
 
 setIcon(playBtn,"pause");
@@ -1745,6 +1748,7 @@ clearInterval(timerInterval);
 timerBtn.classList.remove("activeButton");
 audio.pause();
 audio.volume=1;
+setIcon(playBtn,"play");
 timerDisplay.innerText="";
 safeRemoveStorage("sleepTimerEnd");
 title.innerText="Listening session ended";
