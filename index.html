@@ -309,6 +309,32 @@ rgba(255,220,150,.5);
 
 }
 
+#timerBtn.activeButton{
+
+animation:timerPulse 2.6s ease-in-out infinite;
+
+}
+
+@keyframes timerPulse{
+
+0%,100%{
+box-shadow:0 0 4px rgba(255,220,150,.15);
+}
+
+50%{
+box-shadow:0 0 16px rgba(255,220,150,.75);
+}
+
+}
+
+@media (prefers-reduced-motion:reduce){
+
+#timerBtn.activeButton{
+animation:none;
+}
+
+}
+
 .playlist{
 
 margin-top:20px;
@@ -1708,6 +1734,7 @@ let remainingSeconds=Math.floor((end-Date.now())/1000);
 
 if(remainingSeconds<=0){
 clearInterval(timerInterval);
+timerBtn.classList.remove("activeButton");
 audio.pause();
 audio.volume=1;
 timerDisplay.innerText="";
@@ -1715,6 +1742,8 @@ safeRemoveStorage("sleepTimerEnd");
 title.innerText="Listening session ended";
 return;
 }
+
+timerBtn.classList.add("activeButton");
 
 if(remainingSeconds<=15){
 audio.volume=Math.max(0,remainingSeconds/15);
